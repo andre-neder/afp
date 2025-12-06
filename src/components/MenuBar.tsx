@@ -24,7 +24,7 @@ export default function MenuBar() {
         <button class="cursor-pointer p-2 text-gray-900">Kopieren</button>
       </Show>
       <Show when={selected() === 2}>
-        <button class="cursor-pointer p-2 text-gray-900">All</button>
+        <button class="cursor-pointer p-2 text-gray-900">Alle</button>
         <button class="cursor-pointer p-2 text-gray-900">Focus</button>
       </Show>
       <Show when={selected() === 3}>
