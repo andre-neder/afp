@@ -4,9 +4,12 @@ import * as THREE from "three";
 import { SlideController } from "./SlideController";
 import ContextMenu, { ContextMenuAction } from "./ContextMenu";
 
+import { CSS3DRenderer } from "three/examples/jsm/renderers/CSS3DRenderer.js";
+
 const Slide: Component = () => {
     let containerRef: HTMLDivElement | undefined;
     let renderer: THREE.WebGLRenderer;
+    let cssRenderer: CSS3DRenderer;
     let camera: THREE.OrthographicCamera;
     let scene: THREE.Scene;
     let gridHelper: THREE.GridHelper;
@@ -33,10 +36,23 @@ const Slide: Component = () => {
         );
         camera.position.z = 1000;
 
+        // WebGL Renderer
         renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
         renderer.setSize(width, height);
-        renderer.setClearColor(0x000000, 0); // Transparent background
+        renderer.setClearColor(0x000000, 0);
+        renderer.domElement.style.position = 'absolute';
+        renderer.domElement.style.top = '0';
+        renderer.domElement.style.left = '0';
         containerRef.appendChild(renderer.domElement);
+
+        // CSS3D Renderer
+        cssRenderer = new CSS3DRenderer();
+        cssRenderer.setSize(width, height);
+        cssRenderer.domElement.style.position = 'absolute';
+        cssRenderer.domElement.style.top = '0';
+        cssRenderer.domElement.style.left = '0';
+        cssRenderer.domElement.style.pointerEvents = 'none'; // Allow clicking through to WebGL canvas
+        containerRef.appendChild(cssRenderer.domElement);
 
         gridHelper = new THREE.GridHelper(gridSize, gridSize / gridStep, 0xc0c0c0, 0xc0c0c0);
         gridHelper.rotation.x = Math.PI / 2;
@@ -51,6 +67,7 @@ const Slide: Component = () => {
             animationId = requestAnimationFrame(animate);
             controller.update();
             renderer.render(scene, camera);
+            cssRenderer.render(scene, camera);
         };
         animate();
 
@@ -61,6 +78,7 @@ const Slide: Component = () => {
 
                 controller.handleResize(width, height);
                 renderer.setSize(width, height);
+                cssRenderer.setSize(width, height);
             }
         });
         resizeObserver.observe(containerRef);
@@ -70,7 +88,9 @@ const Slide: Component = () => {
             resizeObserver.disconnect();
             controller.dispose();
             containerRef?.removeChild(renderer.domElement);
+            containerRef?.removeChild(cssRenderer.domElement);
             renderer.dispose();
+            // CSS3DRenderer often doesn't share distinct dispose but checks help
         });
     });
 

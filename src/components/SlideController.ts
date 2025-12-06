@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { CSS3DObject } from "three/examples/jsm/renderers/CSS3DRenderer.js";
 
 export class SlideController {
     private camera: THREE.OrthographicCamera;
@@ -7,9 +8,8 @@ export class SlideController {
     private scene: THREE.Scene;
 
     // Interaction
-    private pages: THREE.Group[] = [];
-    private raycaster = new THREE.Raycaster();
-    private draggedObject: THREE.Group | null = null;
+    private pages: CSS3DObject[] = [];
+    private draggedObject: CSS3DObject | null = null;
     private dragOffset = new THREE.Vector3();
 
     // State
@@ -22,7 +22,6 @@ export class SlideController {
     // Config
     private readonly gridSize = 5000;
     private readonly gridStep = 50;
-    private shadowTexture: THREE.CanvasTexture;
 
     constructor(
         camera: THREE.OrthographicCamera,
@@ -35,33 +34,7 @@ export class SlideController {
         this.gridHelper = gridHelper;
         this.scene = scene;
 
-        this.shadowTexture = this.createShadowTexture();
         this.setupEventListeners();
-    }
-
-    private createShadowTexture(): THREE.CanvasTexture {
-        const canvas = document.createElement("canvas");
-        const size = 128;
-        canvas.width = size;
-        canvas.height = size;
-        const ctx = canvas.getContext("2d")!;
-
-        // Clear
-        ctx.clearRect(0, 0, size, size);
-
-        // Draw shadow
-        ctx.shadowColor = "rgba(0, 0, 0, 0.3)";
-        ctx.shadowBlur = 20;
-        ctx.shadowOffsetX = 0;
-        ctx.shadowOffsetY = 0;
-
-        ctx.fillStyle = "black";
-        // Draw rect smaller than canvas to allow blur to spread
-        const margin = 20;
-        ctx.fillRect(margin, margin, size - margin * 2, size - margin * 2);
-
-        const texture = new THREE.CanvasTexture(canvas);
-        return texture;
     }
 
     public addPage(screenX: number, screenY: number) {
@@ -71,36 +44,50 @@ export class SlideController {
         // Convert screen coordinates to world coordinates
         const worldPos = this.getWorldPoint(screenX, screenY);
 
-        const pageGroup = new THREE.Group();
-        pageGroup.position.set(worldPos.x, worldPos.y, 0);
+        const div = document.createElement('div');
+        div.style.width = `${width}px`;
+        div.style.height = `${height}px`;
+        div.style.backgroundColor = 'white';
+        // Tailwind shadow-lg equivalent approximately
+        div.style.boxShadow = '0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)';
+        div.style.pointerEvents = 'auto'; // Enable interactions
+        div.style.userSelect = 'none'; // Prevent text selection while dragging
 
-        // Page Mesh
-        const geometry = new THREE.PlaneGeometry(width, height);
-        const material = new THREE.MeshBasicMaterial({ color: 0xffffff });
-        const pageMesh = new THREE.Mesh(geometry, material);
+        // Create CSS3D Object
+        const pageObject = new CSS3DObject(div);
+        pageObject.position.set(worldPos.x, worldPos.y, 0);
 
-        // Shadow Mesh
-        // Make shadow slightly larger to account for soft edges
-        const shadowScale = 1.05;
-        const shadowGeometry = new THREE.PlaneGeometry(width * shadowScale, height * shadowScale);
-        shadowGeometry.translate(15, -15, -1); // Behind page and offset
-        const shadowMaterial = new THREE.MeshBasicMaterial({
-            color: 0xffffff,
-            map: this.shadowTexture,
-            transparent: true,
-            opacity: 0.6,
-            depthWrite: false, // Prevent shadow from occluding things properly if Z-fighting
+        // Drag Logic
+        div.addEventListener('mousedown', (e) => {
+            if (e.button !== 0) return; // Only left click
+            e.stopPropagation(); // Prevent camera pan
+
+            this.draggedObject = pageObject;
+
+            // Calculate offset (project mouse to z=0 plane)
+            const mouseWorld = this.getWorldPoint(e.clientX, e.clientY);
+            this.dragOffset.copy(mouseWorld).sub(this.draggedObject.position);
+
+            document.body.style.cursor = 'grabbing';
+            div.style.cursor = 'grabbing';
         });
-        const shadowMesh = new THREE.Mesh(shadowGeometry, shadowMaterial);
 
-        pageGroup.add(shadowMesh);
-        pageGroup.add(pageMesh);
+        div.addEventListener('mouseenter', () => {
+            if (!this.draggedObject) {
+                div.style.cursor = 'grab';
+            }
+        });
 
-        this.scene.add(pageGroup);
-        this.pages.push(pageGroup);
+        this.scene.add(pageObject);
+        this.pages.push(pageObject);
     }
 
     private getWorldPoint(screenX: number, screenY: number): THREE.Vector3 {
+        // For Orthographic camera, unproject is straightforward but mapping screen pixels to world units
+        // depends on how we set up the camera.
+        // We set up camera left/right/top/bottom to match screen pixels width/height.
+        // So 1 unit = 1 pixel at zoom=1.
+
         const rect = this.container.getBoundingClientRect();
         const relX = screenX - rect.left - rect.width / 2;
         const relY = screenY - rect.top - rect.height / 2;
@@ -125,10 +112,6 @@ export class SlideController {
         window.removeEventListener("mousemove", this.handleMouseMove);
         this.container.removeEventListener("wheel", this.handleWheel);
         this.container.removeEventListener("mousemove", this.updateMousePos);
-
-        if (this.shadowTexture) {
-            this.shadowTexture.dispose();
-        }
     }
 
     public update() {
@@ -163,43 +146,8 @@ export class SlideController {
         // Only handle left click
         if (e.button !== 0) return;
 
-        const rect = this.container.getBoundingClientRect();
-        // Check if mouse is within container bounds (it should be since event listener is on container, but good to be safe)
-        if (e.clientX < rect.left || e.clientX > rect.right || e.clientY < rect.top || e.clientY > rect.bottom) return;
-
-        // Normalized Device Coordinates (NDC) for Raycaster
-        const mouseX = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-        const mouseY = -((e.clientY - rect.top) / rect.height) * 2 + 1;
-
-        this.raycaster.setFromCamera(new THREE.Vector2(mouseX, mouseY), this.camera);
-
-        // Raycast against all page groups
-        const intersects = this.raycaster.intersectObjects(this.pages, true);
-
-        if (intersects.length > 0) {
-            // Find the parent Group implementation
-            let targetGroup: THREE.Group | null = null;
-            let current: THREE.Object3D | null = intersects[0].object;
-
-            while (current) {
-                if (current instanceof THREE.Group && this.pages.includes(current as THREE.Group)) {
-                    targetGroup = current as THREE.Group;
-                    break;
-                }
-                current = current.parent;
-            }
-
-            if (targetGroup) {
-                this.draggedObject = targetGroup;
-                const mouseWorld = this.getWorldPoint(e.clientX, e.clientY);
-                this.dragOffset.copy(mouseWorld).sub(this.draggedObject.position);
-
-                document.body.style.cursor = "grabbing";
-                return;
-            }
-        }
-
-        // Fallback to camera drag
+        // CSS3D objects also block events if configured right, but sometimes they pass through.
+        // Assuming preventDefault/stopPropagation in div handler works.
         this.isDragging = true;
         this.lastX = e.clientX;
         this.lastY = e.clientY;
