@@ -1,32 +1,64 @@
-# SolidStart
+# AFP
 
-Everything you need to build a Solid project, powered by [`solid-start`](https://start.solidjs.com);
+A modern desktop application for managing and arranging document pages on an infinite canvas. Built with SolidStart, Tauri, and Three.js.
 
-## Creating a project
+## Features
 
-```bash
-# create a new project in the current directory
-npm init solid@latest
+- **Infinite Canvas**: Pan and zoom freely to organize your workspace using a high-performance Three.js renderer.
+- **Page Management**: Add A4 pages anywhere on the canvas via context menu.
+- **Drag & Drop**: Intuitive page positioning with automatic collision detection to prevent overlaps.
+- **Page Rotation**: Rotate pages 90 degrees to switch between portrait and landscape orientations.
+- **Modern UI**: Clean interface with a resizable sidebar and top menu bar, styled with TailwindCSS.
 
-# create a new project in my-app
-npm init solid@latest my-app
-```
+## Tech Stack
 
-## Developing
+- **Frontend Framework**: [SolidStart](https://start.solidjs.com) (SolidJS)
+- **Desktop Engine**: [Tauri v2](https://tauri.app)
+- **Graphics**: [Three.js](https://threejs.org)
+- **Styling**: [TailwindCSS v4](https://tailwindcss.com)
+- **Bundler**: [Vinxi](https://vinxi.vercel.app)
+- **Utilities**: `@corvu/resizable` for layout, `@thisbeyond/solid-dnd` for interactions.
 
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
+## Prerequisites
 
-```bash
-npm run dev
+Before you begin, ensure you have the following installed:
+- [Node.js](https://nodejs.org/) (v22+ recommended)
+- [Bun](https://bun.sh/) (Package manager)
+- [Rust](https://www.rust-lang.org/tools/install) (Required for Tauri development)
 
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
-```
+## Getting Started
+
+1. **Clone the repository**
+
+2. **Install dependencies**
+   ```bash
+   bun install
+   ```
+
+3. **Run in Development Mode**
+
+   To run the web version in your default browser:
+   ```bash
+   bun run dev
+   ```
+
+   To run the desktop application (Tauri):
+   ```bash
+   bun run dev:native
+   ```
 
 ## Building
 
-Solid apps are built with _presets_, which optimise your project for deployment to different environments.
+To build the application for production:
 
-By default, `npm run build` will generate a Node app that you can run with `npm start`. To use a different preset, add it to the `devDependencies` in `package.json` and specify in your `app.config.js`.
+```bash
+bun run build
+```
 
-## This project was created with the [Solid CLI](https://github.com/solidjs-community/solid-cli)
+This will generate the production artifacts in the `.output` directory and the native app bundle.
+
+## Project Structure
+
+- `src/components`: UI components including the main `Slide` canvas (Three.js integration).
+- `src/routes`: Application routes and page layouts.
+- `src-tauri`: Rust backend configuration and system integrations for Tauri.

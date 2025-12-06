@@ -1,5 +1,5 @@
 {
-  "name": "example-with-tailwindcss",
+  "name": "afp",
   "type": "module",
   "scripts": {
     "dev": "vinxi dev",
@@ -8,9 +8,13 @@
     "start": "vinxi start"
   },
   "dependencies": {
+    "@corvu/resizable": "^0.2.5",
     "@solidjs/router": "^0.15.0",
     "@solidjs/start": "^1.1.0",
+    "@thisbeyond/solid-dnd": "^0.7.5",
+    "@types/three": "^0.181.0",
     "solid-js": "^1.9.5",
+    "three": "^0.181.2",
     "vinxi": "^0.5.7"
   },
   "devDependencies": {
